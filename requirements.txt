@@ -19,7 +19,7 @@ colorlog[windows]==2.6.0
 blinker>=1.3
 packaging
 pandas>=1.1.5
-PyYAML==5.4.1
+PyYAML==6.0
 pint
 numpy>=1.16.5
 contextlib2>=0.5.1
