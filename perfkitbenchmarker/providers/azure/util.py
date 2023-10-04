@@ -76,7 +76,7 @@ def FormatTags(tags_dict):
   return [FormatTag(k, v) for k, v in sorted(six.iteritems(tags_dict))]
 
 
-def GetResourceTags(timeout_minutes):
+def GetResourceTags(timeout_minutes, accelerated_connections=False):
   """Gets a dict of tags.
 
   Args:
@@ -86,10 +86,13 @@ def GetResourceTags(timeout_minutes):
     A dict contains formatted tags.
   """
   benchmark_spec = context.GetThreadBenchmarkSpec()
-  return benchmark_spec.GetResourceTags(timeout_minutes)
+  tags = benchmark_spec.GetResourceTags(timeout_minutes)
+  if accelerated_connections:
+    tags['fastpathenabled'] = 'true'
+  return tags
 
 
-def GetTags(timeout_minutes):
+def GetTags(timeout_minutes, accelerated_connections=False):
   """Gets a list of tags to be used with the --tags param of Azure CLI.
 
   Args:
@@ -98,10 +101,10 @@ def GetTags(timeout_minutes):
   Returns:
     A string contains formatted tags.
   """
-  return FormatTags(GetResourceTags(timeout_minutes))
+  return FormatTags(GetResourceTags(timeout_minutes, accelerated_connections))
 
 
-def GetTagsJson(timeout_minutes):
+def GetTagsJson(timeout_minutes, accelerated_connections=False):
   """Gets a JSON string of tags to be used with the --set param of Azure CLI.
 
   Args:
@@ -110,7 +113,7 @@ def GetTagsJson(timeout_minutes):
   Returns:
     A string contains json formatted tags.
   """
-  return 'tags={}'.format(json.dumps(GetResourceTags(timeout_minutes)))
+  return 'tags={}'.format(json.dumps(GetResourceTags(timeout_minutes, accelerated_connections)))
 
 
 def _IsRegion(zone_or_region):

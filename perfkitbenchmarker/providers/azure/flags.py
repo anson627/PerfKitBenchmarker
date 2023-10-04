@@ -72,6 +72,11 @@ flags.DEFINE_boolean('azure_accelerated_networking', False,
                      'https://docs.microsoft.com/en-us/azure/virtual-network/'
                      'create-vm-accelerated-networking-cli'
                      'for more information.')
+AZURE_ACCELERATED_CONNECTIONS = flags.DEFINE_boolean('azure_accelerated_connections', False,
+                     'Enable Azure Accelerated Connections. See '
+                     'https://learn.microsoft.com/en-us/azure/networking/'
+                     'nva-accelerated-connections'
+                     'for more information.')
 
 AZURE_SUBNET_ID = flags.DEFINE_string(
     'azure_subnet_id', None,

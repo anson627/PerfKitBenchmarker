@@ -128,6 +128,7 @@ class AzureVmSpec(virtual_machine.BaseVmSpec):
     tier: None or string. performance tier of the machine.
     compute_units: int.  number of compute units for the machine.
     accelerated_networking: boolean. True if supports accelerated_networking.
+    accelerated_connections: boolean. True if supports accelerated_connections.
     boot_disk_size: None or int. The size of the boot disk in GB.
     boot_disk_type: string or None. The type of the boot disk.
     low_priority: boolean. True if the VM should be low-priority, else False.
@@ -164,6 +165,9 @@ class AzureVmSpec(virtual_machine.BaseVmSpec):
     if flag_values['azure_accelerated_networking'].present:
       config_values['accelerated_networking'] = (
           flag_values.azure_accelerated_networking)
+    if flag_values['azure_accelerated_connections'].present:
+      config_values['accelerated_connections'] = (
+          flag_values.azure_accelerated_connections)
     if flag_values['azure_low_priority_vms'].present:
       config_values['low_priority'] = flag_values.azure_low_priority_vms
 
@@ -181,6 +185,9 @@ class AzureVmSpec(virtual_machine.BaseVmSpec):
         'machine_type':
             (custom_virtual_machine_spec.AzureMachineTypeDecoder, {}),
         'accelerated_networking': (option_decoders.BooleanDecoder, {
+            'default': False
+        }),
+        'accelerated_connections': (option_decoders.BooleanDecoder, {
             'default': False
         }),
         'boot_disk_size': (option_decoders.IntDecoder, {
@@ -267,6 +274,7 @@ class AzureNIC(resource.BaseResource):
                name: str,
                public_ip: Optional[str],
                accelerated_networking: bool,
+               accelerated_connections: bool,
                private_ip=None):
     super(AzureNIC, self).__init__()
     self.network = network
@@ -278,6 +286,7 @@ class AzureNIC(resource.BaseResource):
     self.region = self.network.region
     self.args = ['--nics', self.name]
     self.accelerated_networking = accelerated_networking
+    self.accelerated_connections = accelerated_connections
 
   def _Create(self):
     cmd = [
@@ -297,11 +306,37 @@ class AzureNIC(resource.BaseResource):
       cmd += ['--public-ip-address', self.public_ip]
     if self.private_ip:
       cmd += ['--private-ip-address', self.private_ip]
-    if self.accelerated_networking:
+    if self.accelerated_networking or self.accelerated_connections:
       cmd += ['--accelerated-networking', 'true']
     if self.network.nsg:
       cmd += ['--network-security-group', self.network.nsg.name]
+    
+    if self.accelerated_connections:
+      cmd += ['--tags', util.FormatTag('fastpathenabled', 'true')]
     vm_util.IssueCommand(cmd)
+    
+    if self.accelerated_connections:
+      cmd = [
+          azure.AZURE_PATH, 'account', 'show'
+      ]
+      stdout, _, _ = vm_util.IssueCommand(cmd)
+      response = json.loads(stdout)
+      subscription_id = response['id']
+      cmd = [
+        azure.AZURE_PATH, 'rest', '--method', 'GET', '--uri',
+        "/subscriptions/{}/resourceGroups/{}/providers/Microsoft.Network/networkInterfaces/{}?api-version=2022-11-01".format(subscription_id, self.resource_group.name, self.name)
+      ]
+      stdout, _ = vm_util.IssueRetryableCommand(cmd)
+      response = json.loads(stdout)
+      response['properties']['auxiliaryMode'] = 'AcceleratedConnections'
+      response['properties']['auxiliarySku'] = 'A4'
+      cmd = [
+        azure.AZURE_PATH, 'rest', '--method', 'PUT', '--uri',
+        "/subscriptions/{}/resourceGroups/{}/providers/Microsoft.Network/networkInterfaces/{}?api-version=2022-11-01".format(subscription_id, self.resource_group.name, self.name),
+        '--body', json.dumps(response)
+      ]
+      vm_util.IssueRetryableCommand(cmd)
+
 
   def _Exists(self):
     if self._deleted:
@@ -576,6 +611,7 @@ class AzureVirtualMachine(virtual_machine.BaseVirtualMachine):
         self.name + '-nic',
         public_ip_name,
         vm_spec.accelerated_networking,
+        vm_spec.accelerated_connections,
     )
 
     self.storage_account = self.network.storage_account
@@ -674,6 +710,8 @@ class AzureVirtualMachine(virtual_machine.BaseVirtualMachine):
     tags = {}
     tags.update(self.vm_metadata)
     tags.update(util.GetResourceTags(self.resource_group.timeout_minutes))
+    if self.nic.accelerated_connections:
+      tags['fastpathenabled'] = 'true'
     tag_args = ['--tags'] + util.FormatTags(tags)
 
     create_cmd = (
@@ -929,6 +967,7 @@ class AzureVirtualMachine(virtual_machine.BaseVirtualMachine):
   def GetResourceMetadata(self):
     result = super(AzureVirtualMachine, self).GetResourceMetadata()
     result['accelerated_networking'] = self.nic.accelerated_networking
+    result['accelerated_connections'] = self.nic.accelerated_connections
     result['boot_disk_type'] = self.os_disk.disk_type
     result['boot_disk_size'] = self.os_disk.disk_size
     if self.network.placement_group:

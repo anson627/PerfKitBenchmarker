@@ -103,7 +103,7 @@ class AzureResourceGroup(resource.BaseResource):
           [
               azure.AZURE_PATH, 'group', 'create', '--name', self.name,
               '--location', self.region, '--tags'
-          ] + util.GetTags(self.timeout_minutes),
+          ] + util.GetTags(self.timeout_minutes, azure_flags.AZURE_ACCELERATED_CONNECTIONS.value),
           raise_on_failure=False)
 
       if retcode and self.raise_on_create_failure:
@@ -198,7 +198,7 @@ class AzureStorageAccount(resource.BaseResource):
           azure.AZURE_PATH, 'storage', 'account', 'create', '--kind', self.kind,
           '--sku', self.storage_type, '--name', self.name, '--tags'
       ] + util.GetTags(
-          self.resource_group.timeout_minutes) + self.resource_group.args
+          self.resource_group.timeout_minutes, azure_flags.AZURE_ACCELERATED_CONNECTIONS.value) + self.resource_group.args
       if self.region:
         create_cmd.extend(['--location', self.region])
       if self.kind == 'BlobStorage':
@@ -330,7 +330,7 @@ class AzureVirtualNetwork(network.BaseNetwork):
       vm_util.IssueRetryableCommand([
           azure.AZURE_PATH, 'network', 'vnet', 'create', '--location', self
           .region, '--name', self.name, '--address-prefixes'
-      ] + self.address_spaces + self.resource_group.args)
+      ] + self.address_spaces + ['--tags'] + util.GetTags(240, azure_flags.AZURE_ACCELERATED_CONNECTIONS.value)+ self.resource_group.args)
 
       self.is_created = True
 
@@ -424,8 +424,8 @@ class AzureNetworkSecurityGroup(resource.BaseResource):
   def _Create(self):
     vm_util.IssueCommand([
         azure.AZURE_PATH, 'network', 'nsg', 'create', '--location',
-        self.region, '--name', self.name
-    ] + self.resource_group.args)
+        self.region, '--name', self.name,
+    ] + self.resource_group.args + ['--tags'] + util.GetTags(240, azure_flags.AZURE_ACCELERATED_CONNECTIONS.value))
 
   @vm_util.Retry()
   def _Exists(self):
