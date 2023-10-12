@@ -143,6 +143,9 @@ flags.DEFINE_integer(
     'ssh_retries', 10, 'Default number of times to retry SSH.', lower_bound=0)
 
 flags.DEFINE_integer(
+    'ssh_port', DEFAULT_SSH_PORT, 'Port number to SSH.', lower_bound=0)
+
+flags.DEFINE_integer(
     'scp_connect_timeout', 30, 'timeout for SCP connection.', lower_bound=0)
 
 flags.DEFINE_string(
@@ -353,7 +356,7 @@ class BaseLinuxMixin(virtual_machine.BaseOsMixin):
     super(BaseLinuxMixin, self).__init__(*args, **kwargs)
     # N.B. If you override ssh_port you must override remote_access_ports and
     # primary_remote_access_port.
-    self.ssh_port = DEFAULT_SSH_PORT
+    self.ssh_port = FLAGS.ssh_port
     self.remote_access_ports = [self.ssh_port]
     self.primary_remote_access_port = self.ssh_port
     self.has_private_key = False
