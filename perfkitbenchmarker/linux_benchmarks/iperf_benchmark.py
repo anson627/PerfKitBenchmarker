@@ -355,6 +355,7 @@ def _RunIperf(
           'interval_congestion_window_list': cwnd_avg_list,
           'interval_retry_list': retry_sum_list,
           'interval_netpwr_list': netpwr_sum_list,
+          'tcp_per_stream_bandwidth_mbit': FLAGS.iperf_tcp_per_stream_bandwidth,
       }
 
       metadata_tmp = metadata.copy()
@@ -432,6 +433,7 @@ def _RunIperf(
           'rtt': rtt,
           'rtt_unit': rtt_unit,
           'netpwr': netpwr,
+          'tcp_per_stream_bandwidth_mbit': FLAGS.iperf_tcp_per_stream_bandwidth,
       }
       metadata.update(tcp_metadata)
       return sample.Sample(
